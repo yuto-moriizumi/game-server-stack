@@ -19,7 +19,7 @@ const APP_ID = 2394010;
 const EXECUTABLE = "PalServer.sh";
 const PORT: Port[] = [Port.udp(8211)];
 const INSTANCE_TYPE = "t3a.large";
-const VOLUME_SIZE = 16;
+const VOLUME_SIZE = 32;
 
 const service = `[Unit]
 Description=Game server

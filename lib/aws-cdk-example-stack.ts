@@ -1,19 +1,31 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import { Construct } from 'constructs';
+import { Stack, StackProps } from "aws-cdk-lib";
+import {
+  Instance,
+  InstanceType,
+  MachineImage,
+  SubnetType,
+  Vpc,
+} from "aws-cdk-lib/aws-ec2";
+import { Construct } from "constructs";
 
-export class AwsCdkExampleStack extends Stack {
+export class GameServerStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const queue = new sqs.Queue(this, 'AwsCdkExampleQueue', {
-      visibilityTimeout: Duration.seconds(300)
+    const vpc = new Vpc(this, "VPC", {
+      maxAzs: 1,
+      subnetConfiguration: [
+        {
+          name: "Subnet",
+          subnetType: SubnetType.PUBLIC,
+        },
+      ],
     });
 
-    const topic = new sns.Topic(this, 'AwsCdkExampleTopic');
-
-    topic.addSubscription(new subs.SqsSubscription(queue));
+    new Instance(this, "EC2", {
+      vpc,
+      instanceType: new InstanceType("t3a.large"),
+      machineImage: MachineImage.latestAmazonLinux2(),
+    });
   }
 }

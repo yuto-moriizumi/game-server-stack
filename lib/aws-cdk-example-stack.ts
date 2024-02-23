@@ -1,4 +1,5 @@
 import { Stack, StackProps } from "aws-cdk-lib";
+import { CfnLifecyclePolicy } from "aws-cdk-lib/aws-dlm";
 import {
   Instance,
   InstanceType,
@@ -46,5 +47,31 @@ export class GameServerStack extends Stack {
       version: launchTemplate.versionNumber,
       launchTemplateId: launchTemplate.launchTemplateId,
     };
+
+    new CfnLifecyclePolicy(this, "LifecyclePolicy", {
+      description: "Backup Game Server",
+      state: "ENABLED",
+      executionRoleArn:
+        "arn:aws:iam::286748709931:role/service-role/AWSDataLifecycleManagerDefaultRole",
+      policyDetails: {
+        policyType: "IMAGE_MANAGEMENT",
+        resourceTypes: ["INSTANCE"],
+        targetTags: instance.instance.tags.renderedTags,
+        schedules: [
+          {
+            name: "Backup",
+            createRule: {
+              interval: 1,
+              intervalUnit: "HOURS",
+              times: ["09:00"],
+            },
+            retainRule: {
+              interval: 2,
+              intervalUnit: "DAYS",
+            },
+          },
+        ],
+      },
+    });
   }
 }

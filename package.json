@@ -1,8 +1,8 @@
 {
-  "name": "aws-cdk-example",
+  "name": "game-server",
   "version": "0.1.0",
   "bin": {
-    "aws-cdk-example": "bin/aws-cdk-example.js"
+    "game-server": "bin/game-server.js"
   },
   "scripts": {
     "build": "tsc",

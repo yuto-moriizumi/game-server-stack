@@ -1,7 +1,10 @@
-import { Stack, StackProps } from "aws-cdk-lib";
+import { Size, Stack, StackProps, Tag } from "aws-cdk-lib";
 import { CfnLifecyclePolicy } from "aws-cdk-lib/aws-dlm";
 import {
+  EbsDeviceVolumeType,
   Instance,
+  InstanceClass,
+  InstanceSize,
   InstanceType,
   LaunchTemplate,
   MachineImage,
@@ -10,16 +13,20 @@ import {
   SecurityGroup,
   SubnetType,
   UserData,
+  Volume,
   Vpc,
 } from "aws-cdk-lib/aws-ec2";
+import { Role } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 const GAME_NAME = "Palworld";
 const APP_ID = 2394010;
 const EXECUTABLE = "PalServer.sh";
 const PORT: Port[] = [Port.udp(8211)];
-const INSTANCE_TYPE = "t3a.large";
-const VOLUME_SIZE = 16;
+// const INSTANCE_TYPE = new InstanceType("t3a.large");
+const INSTANCE_TYPE = InstanceType.of(InstanceClass.T3A, InstanceSize.MEDIUM);
+const VOLUME_SIZE = 17;
+const DEVICE_NAME = "/dev/sdh";
 
 const service = `[Unit]
 Description=Game server
@@ -27,7 +34,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/ec2-user/${GAME_NAME}/${EXECUTABLE}
+ExecStart=/data/${GAME_NAME}/${EXECUTABLE}
 Restart=always
 User=ec2-user
 
@@ -56,14 +63,17 @@ export class GameServerStack extends Stack {
     PORT.forEach((port) => securityGroup.addIngressRule(Peer.anyIpv4(), port));
 
     const launchTemplate = new LaunchTemplate(this, "Template", {
-      spotOptions: {},
+      // spotOptions: {},
     });
 
     const userData = UserData.forLinux();
     userData.addCommands(
+      "mkdir /data",
+      `mkfs -t xfs ${DEVICE_NAME}`,
+      `mount ${DEVICE_NAME} /data`,
       "yum update -y",
       "yum install -y glibc.i686 libstdc++48.i686",
-      "cd /home/ec2-user",
+      "cd /data",
       "wget 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'",
       "tar -xzvf steamcmd_linux.tar.gz",
       "rm -f steamcmd_linux.tar.gz",
@@ -71,39 +81,41 @@ export class GameServerStack extends Stack {
       `./steamcmd.sh +force_install_dir ${GAME_NAME} +login anonymous +app_update ${APP_ID} validate +quit`,
       `echo -e "${service}" > /etc/systemd/system/game.service`,
       "systemctl daemon-reload",
-      "systemctl start game",
+      "systemctl start game"
     );
-    const instance = new Instance(this, "EC2", {
+
+    const { instance } = new Instance(this, "EC2", {
       vpc,
-      instanceType: new InstanceType(INSTANCE_TYPE),
+      instanceType: INSTANCE_TYPE,
       machineImage: MachineImage.latestAmazonLinux2(),
       securityGroup,
-      blockDevices: [
-        {
-          deviceName: "/dev/xvda",
-          volume: {
-            ebsDevice: {
-              volumeSize: VOLUME_SIZE,
-            },
-          },
-        },
-      ],
       userData,
     });
-    instance.instance.launchTemplate = {
+    const volume = new Volume(this, "Volume", {
+      volumeName: "GameServerStack/Volume",
+      availabilityZone: this.availabilityZones[0],
+      size: Size.gibibytes(VOLUME_SIZE), // ボリュームサイズを指定
+      volumeType: EbsDeviceVolumeType.GP2, // ボリュームタイプを指定
+    });
+    instance.volumes = [{ device: DEVICE_NAME, volumeId: volume.volumeId }];
+    instance.launchTemplate = {
       version: launchTemplate.versionNumber,
       launchTemplateId: launchTemplate.launchTemplateId,
     };
 
+    const executionRoleArn = Role.fromRoleName(
+      this,
+      "Role",
+      "AWSDataLifecycleManagerDefaultRole"
+    ).roleArn;
     new CfnLifecyclePolicy(this, "LifecyclePolicy", {
-      description: "Backup Game Server",
+      description: "EBSSnapshotManagement for the GameServerStack",
       state: "ENABLED",
-      executionRoleArn:
-        "arn:aws:iam::286748709931:role/service-role/AWSDataLifecycleManagerDefaultRole",
+      executionRoleArn,
       policyDetails: {
-        policyType: "IMAGE_MANAGEMENT",
-        resourceTypes: ["INSTANCE"],
-        targetTags: instance.instance.tags.renderedTags,
+        policyType: "EBS_SNAPSHOT_MANAGEMENT",
+        resourceTypes: ["VOLUME"],
+        targetTags: [new Tag("aws:cloudformation:stack-id", this.stackId)],
         schedules: [
           {
             name: "Backup",
@@ -122,4 +134,3 @@ export class GameServerStack extends Stack {
     });
   }
 }
-

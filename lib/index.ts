@@ -58,6 +58,9 @@ export interface GameServerStackProps extends StackProps {
    * @default Size.gibibytes(32)
    */
   volumeSize?: Size;
+  /**
+   * Specifying `volumeId` will import an existing volume instead of creating a new one
+   */
   volumeId?: string;
 }
 

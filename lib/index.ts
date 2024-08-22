@@ -9,6 +9,8 @@ import {
   Peer,
   Port,
   SecurityGroup,
+  SpotInstanceInterruption,
+  SpotRequestType,
   SubnetType,
   UserData,
   Volume,
@@ -106,14 +108,19 @@ WantedBy=default.target`.replace("\n", "\\n");
     );
 
     const launchTemplate = new LaunchTemplate(this, "Template", {
-      spotOptions: props.useSpot ? {} : undefined,
+      spotOptions: props.useSpot
+        ? {
+            requestType: SpotRequestType.PERSISTENT,
+            interruptionBehavior: SpotInstanceInterruption.STOP,
+          }
+        : undefined,
     });
 
     const userData = UserData.forLinux();
     const mountPaths = ["/data", ...(props.mountPaths ?? [])];
     userData.addCommands(
-      "mkdir /data",
       `mkfs -t xfs ${DEVICE_NAME}`,
+      ...mountPaths.map((path) => `mkdir -p ${path}`),
       ...mountPaths.map((path) => `mount ${DEVICE_NAME} ${path}`),
       "yum update -y",
       "yum install -y glibc.i686 libstdc++48.i686 htop",
@@ -192,7 +199,7 @@ WantedBy=default.target`.replace("\n", "\\n");
         volumeName: `${this.stackName}/Volume`,
         availabilityZone: this.availabilityZones[0],
         size: this.volumeSize,
-        volumeType: EbsDeviceVolumeType.GP2,
+        volumeType: EbsDeviceVolumeType.GP3,
       });
   }
 }

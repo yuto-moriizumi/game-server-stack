@@ -27,6 +27,8 @@ const GAMES = {
     volumeSize: Size.gibibytes(24),
     useSpot: true,
     volumeId: "vol-06782846ac40dcdea",
+    /** Savedata is created under user's home */
+    mountPaths: ["/home/ec2-user/.config/Epic"],
   },
 } as const satisfies Record<string, GameServerStackProps>;
 

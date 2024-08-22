@@ -54,14 +54,22 @@ export interface GameServerStackProps extends StackProps {
    */
   useSpot?: boolean;
   /**
-   * The volume size of the game server
+   * The volume size of the persistent volume
+   * Note that this doesn't apply for the root volume
    * @default Size.gibibytes(32)
    */
   volumeSize?: Size;
   /**
-   * Specifying `volumeId` will import an existing volume instead of creating a new one
+   * Specifying `volumeId` will import an existing persistent volume instead of creating a new one
+   * @example "vol-06782846ac40dcdea"
    */
   volumeId?: string;
+  /**
+   * The absolute paths to be stored in the persistent volume
+   * Can be useful for games which has savedata under different location to game executable
+   * @example ["/home/ec2-user/.config/Epic"] // for Satisfactory
+   */
+  mountPaths?: string[];
 }
 
 export class GameServerStack extends Stack {
@@ -102,10 +110,11 @@ WantedBy=default.target`.replace("\n", "\\n");
     });
 
     const userData = UserData.forLinux();
+    const mountPaths = ["/data", ...(props.mountPaths ?? [])];
     userData.addCommands(
       "mkdir /data",
       `mkfs -t xfs ${DEVICE_NAME}`,
-      `mount ${DEVICE_NAME} /data`,
+      ...mountPaths.map((path) => `mount ${DEVICE_NAME} ${path}`),
       "yum update -y",
       "yum install -y glibc.i686 libstdc++48.i686 htop",
       "cd /data",

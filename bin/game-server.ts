@@ -21,7 +21,7 @@ const GAMES = {
   Satisfactory: {
     appId: 1690800,
     executablePath: "FactoryServer.sh",
-    launchOptions: "-multihome=0.0.0.0",
+    // launchOptions: "-multihome=0.0.0.0",
     instanceType: InstanceType.of(InstanceClass.T3A, InstanceSize.XLARGE),
     ports: [Port.udp(7777), Port.udp(15000), Port.udp(15777)],
     volumeSize: Size.gibibytes(24),

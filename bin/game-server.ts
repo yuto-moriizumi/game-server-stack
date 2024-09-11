@@ -26,7 +26,7 @@ const GAMES = {
     ports: [Port.udp(7777), Port.udp(15000), Port.udp(15777)],
     volumeSize: Size.gibibytes(24),
     useSpot: true,
-    volumeId: "vol-06782846ac40dcdea",
+    // volumeId: "vol-06782846ac40dcdea",
     /** Savedata is created under user's home */
     mountPaths: ["/home/ec2-user/.config/Epic"],
   },

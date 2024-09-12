@@ -25,7 +25,7 @@ const GAMES = {
     instanceType: InstanceType.of(InstanceClass.T3A, InstanceSize.XLARGE),
     ports: [Port.tcp(7777), Port.udp(7777), Port.udp(15000), Port.udp(15777)],
     volumeSize: Size.gibibytes(24),
-    useSpot: true,
+    useSpot: false,
     volumeId: "vol-0713378dc970fb43d",
     /** Savedata is created under user's home */
     mountPaths: ["/home/ec2-user/.config/Epic"],
@@ -34,4 +34,4 @@ const GAMES = {
 
 // App definition
 const app = new App();
-new GameServerStack(app, "Satisfactory2", GAMES.Satisfactory);
+new GameServerStack(app, "Satisfactory", GAMES.Satisfactory);

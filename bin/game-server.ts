@@ -22,7 +22,7 @@ const GAMES = {
     appId: 1690800,
     executablePath: "FactoryServer.sh",
     // launchOptions: "-multihome=0.0.0.0",
-    instanceType: InstanceType.of(InstanceClass.T3A, InstanceSize.XLARGE),
+    instanceType: InstanceType.of(InstanceClass.M7I_FLEX, InstanceSize.LARGE),
     ports: [Port.tcp(7777), Port.udp(7777), Port.udp(15000), Port.udp(15777)],
     volumeSize: Size.gibibytes(24),
     useSpot: false,

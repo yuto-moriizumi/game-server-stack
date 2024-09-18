@@ -34,4 +34,4 @@ const GAMES = {
 
 // App definition
 const app = new App();
-new GameServerStack(app, "Satisfactory", GAMES.Satisfactory);
+new GameServerStack(app, "Satisfactory2", GAMES.Satisfactory);

@@ -163,7 +163,7 @@ WantedBy=default.target`.replace("\n", "\\n");
       policyDetails: {
         policyType: "EBS_SNAPSHOT_MANAGEMENT",
         resourceTypes: ["VOLUME"],
-        targetTags: [new Tag("aws:cloudformation:stack-id", this.stackId)],
+        targetTags: [new Tag("Name", `${this.stackName}/Volume`)],
         schedules: [
           {
             name: "Backup",

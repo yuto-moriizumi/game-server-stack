@@ -111,7 +111,7 @@ WantedBy=default.target`.replace("\n", "\\n");
       spotOptions: props.useSpot
         ? {
             requestType: SpotRequestType.PERSISTENT,
-            interruptionBehavior: SpotInstanceInterruption.STOP,
+            interruptionBehavior: SpotInstanceInterruption.TERMINATE,
           }
         : undefined,
     });

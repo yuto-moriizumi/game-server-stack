@@ -1,6 +1,8 @@
 import { Size, Stack, StackProps, Tag } from "aws-cdk-lib";
 import { CfnLifecyclePolicy } from "aws-cdk-lib/aws-dlm";
 import {
+  CfnEIP,
+  CfnEIPAssociation,
   EbsDeviceVolumeType,
   Instance,
   InstanceType,
@@ -111,7 +113,7 @@ WantedBy=default.target`.replace("\n", "\\n");
       spotOptions: props.useSpot
         ? {
             requestType: SpotRequestType.PERSISTENT,
-            interruptionBehavior: SpotInstanceInterruption.TERMINATE,
+            interruptionBehavior: SpotInstanceInterruption.STOP,
           }
         : undefined,
     });
@@ -136,20 +138,24 @@ WantedBy=default.target`.replace("\n", "\\n");
       "systemctl start game"
     );
 
-    const { instance } = new Instance(this, "EC2", {
+    const { instance, instanceId } = new Instance(this, "EC2", {
       vpc,
       instanceType: props.instanceType,
       machineImage: MachineImage.latestAmazonLinux2(),
       securityGroup,
       userData,
     });
-
     const { volumeId } = this.getVolume(props.volumeId);
     instance.volumes = [{ device: DEVICE_NAME, volumeId }];
     instance.launchTemplate = {
       version: launchTemplate.versionNumber,
       launchTemplateId: launchTemplate.launchTemplateId,
     };
+    if (props.useSpot)
+      new CfnEIPAssociation(this, "EIPAssociation", {
+        allocationId: new CfnEIP(this, "EIP").attrAllocationId,
+        instanceId,
+      });
 
     const executionRoleArn = Role.fromRoleName(
       this,

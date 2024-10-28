@@ -19,29 +19,16 @@ import {
   Vpc,
 } from "aws-cdk-lib/aws-ec2";
 import { Role } from "aws-cdk-lib/aws-iam";
+import { Asset } from "aws-cdk-lib/aws-s3-assets";
 import { Construct } from "constructs";
+import { basename } from "path";
 
 const INSTALL_DIR = "game";
 const DEVICE_NAME = "/dev/sdh";
 const DEFAULT_SIZE = Size.gibibytes(32);
 
-export interface GameServerStackProps extends StackProps {
-  /**
-   * The relative path of the game server executable from the install root folder.
-   * @example "PalServer.sh" // for Palworld
-   */
-  executablePath: string;
-  /**
-   * The launch options of the game server
-   * @example "-multihome=0.0.0.0"
-   * @example "-multihome=0.0.0.0 -log"
-   */
-  launchOptions?: string;
-  /**
-   * The Steam app id of the game server
-   * @example 2394010 // for Palworld
-   */
-  appId: number;
+interface GameServerCommonProps extends StackProps {
+  execCommand: (uploadedZipPath?: string) => string;
   /**
    * The ports that the game server will expose
    * @example [Port.udp(8211)] // for Palworld
@@ -74,26 +61,34 @@ export interface GameServerStackProps extends StackProps {
    * @example ["/home/ec2-user/.config/Epic"] // for Satisfactory
    */
   mountPaths?: string[];
+  /**
+   * The path of the file to be uploaded to the game server
+   */
+  uploadZipPath?: string;
 }
+
+/** For the servers can be installed with SteamCMD */
+interface SteamCMDServerProps extends GameServerCommonProps {
+  /**
+   * The Steam app id of the game server
+   * @example 2394010 // for Palworld
+   */
+  appId: number;
+}
+/** For the servers requires custom install script */
+interface CustomServerProps extends GameServerCommonProps {
+  /**
+   * List of commands to get the server executable
+   */
+  commands: string[];
+}
+export type GameServerProps = SteamCMDServerProps | CustomServerProps;
 
 export class GameServerStack extends Stack {
   private readonly volumeSize: Size;
-  constructor(scope: Construct, id: string, props: GameServerStackProps) {
+  constructor(scope: Construct, id: string, props: GameServerProps) {
     super(scope, id, props);
     this.volumeSize = props.volumeSize ?? DEFAULT_SIZE;
-
-    const service = `[Unit]
-Description=Game server
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/data/${INSTALL_DIR}/${props.executablePath} ${props.launchOptions ?? ""}
-Restart=always
-User=ec2-user
-
-[Install]
-WantedBy=default.target`.replace("\n", "\\n");
 
     const vpc = new Vpc(this, "VPC", {
       maxAzs: 1,
@@ -125,29 +120,44 @@ WantedBy=default.target`.replace("\n", "\\n");
       ...mountPaths.map((path) => `mkdir -p ${path}`),
       ...mountPaths.map((path) => `mount ${DEVICE_NAME} ${path}`),
       "yum update -y",
-      "yum install -y glibc.i686 libstdc++48.i686 htop",
-      "cd /data",
-      "wget 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'",
-      "tar -xzvf steamcmd_linux.tar.gz",
-      "rm -f steamcmd_linux.tar.gz",
-      "find -exec chmod 777 {} \\;",
-      `./steamcmd.sh +force_install_dir ${INSTALL_DIR} +login anonymous +app_update ${props.appId} validate +quit`,
-      `chown -R ec2-user:ec2-user /data/${INSTALL_DIR}`,
+      "yum install -y glibc.i686 libstdc++48.i686",
+      "yum install -y htop", // sometimes the above command fails so install htop separately,
+      "cd /data"
+    );
+    if ("appId" in props) {
+      userData.addCommands(
+        "wget 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz'",
+        "tar -xzvf steamcmd_linux.tar.gz",
+        "rm -f steamcmd_linux.tar.gz",
+        "find -exec chmod 777 {} \\;",
+        `./steamcmd.sh +force_install_dir ${INSTALL_DIR} +login anonymous +app_update ${props.appId} validate +quit`
+      );
+    } else {
+      userData.addCommands(...props.commands);
+    }
+
+    const instance = new Instance(this, "EC2", {
+      vpc,
+      instanceType: props.instanceType,
+      machineImage: MachineImage.latestAmazonLinux2023(),
+      securityGroup,
+      userData,
+    });
+    const service = this.getSystemdService(
+      props.execCommand,
+      props.uploadZipPath && this.createAsset(props.uploadZipPath, instance)
+    );
+    userData.addCommands(
+      "chown -R ec2-user:ec2-user /data",
       `echo -e "${service}" > /etc/systemd/system/game.service`,
       "systemctl daemon-reload",
       "systemctl start game"
     );
 
-    const { instance, instanceId } = new Instance(this, "EC2", {
-      vpc,
-      instanceType: props.instanceType,
-      machineImage: MachineImage.latestAmazonLinux2(),
-      securityGroup,
-      userData,
-    });
+    const { instance: cfnInstance, instanceId } = instance;
     const { volumeId } = this.getVolume(props.volumeId);
-    instance.volumes = [{ device: DEVICE_NAME, volumeId }];
-    instance.launchTemplate = {
+    cfnInstance.volumes = [{ device: DEVICE_NAME, volumeId }];
+    cfnInstance.launchTemplate = {
       version: launchTemplate.versionNumber,
       launchTemplateId: launchTemplate.launchTemplateId,
     };
@@ -207,5 +217,35 @@ WantedBy=default.target`.replace("\n", "\\n");
         size: this.volumeSize,
         volumeType: EbsDeviceVolumeType.GP3,
       });
+  }
+
+  private createAsset(path: string, instance: Instance) {
+    const asset = new Asset(this, "Asset", { path });
+    asset.grantRead(instance);
+    const assetPath = instance.userData.addS3DownloadCommand({
+      bucket: asset.bucket,
+      bucketKey: asset.s3ObjectKey,
+    });
+    const uploadedZipPath = `/data/${basename(assetPath)}`;
+    instance.userData.addCommands(`mv ${assetPath} ${uploadedZipPath}`);
+    return uploadedZipPath;
+  }
+
+  private getSystemdService(
+    execCommand: GameServerCommonProps["execCommand"],
+    uploadedZipPath?: string
+  ) {
+    return `[Unit]
+Description=Game server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=${execCommand(uploadedZipPath)}
+Restart=always
+User=ec2-user
+
+[Install]
+WantedBy=default.target`.replace("\n", "\\n");
   }
 }

@@ -13,7 +13,7 @@ test("VPC and EC2 instance created", () => {
 
   const stack = new GameServerStack(app, "MyTestStack", {
     appId: 123,
-    executablePath: "Server.sh",
+    execCommand: () => "Server.sh",
     instanceType: InstanceType.of(InstanceClass.T3A, InstanceSize.LARGE),
     ports: [Port.udp(7777)],
   });

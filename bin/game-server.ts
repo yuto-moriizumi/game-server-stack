@@ -53,4 +53,4 @@ const GAMES = {
 
 // App definition
 const app = new App();
-new GameServerStack(app, "Factorio", GAMES.Factorio);
+new GameServerStack(app, "Factorio2", GAMES.Factorio);

@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "@types/node": "24.9.2",
+    "@types/node": "24.10.0",
     "aws-cdk": "2.1031.1",
     "eslint": "^9.39.0",
     "jest": "^30.0.0",

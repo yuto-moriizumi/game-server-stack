@@ -15,7 +15,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "25.5.0",
-    "aws-cdk": "2.1113.0",
+    "aws-cdk": "2.1114.1",
     "eslint": "^9.39.2",
     "jest": "^30.3.0",
     "prettier": "^3.8.1",

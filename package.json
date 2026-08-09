@@ -13,10 +13,11 @@
     "lint": "eslint"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.13.3",
     "aws-cdk": "2.1135.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.8.1",
     "jest": "^30.4.2",
     "prettier": "^3.9.6",
     "ts-jest": "^29.4.12",

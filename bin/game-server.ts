@@ -17,7 +17,6 @@ const GAMES = {
     instanceType: InstanceType.of(InstanceClass.T3A, InstanceSize.LARGE),
     ports: [Port.udp(8211)],
     volumeSize: Size.gibibytes(32),
-    useSpot: true,
     execCommand: () => "/data/game/PalServer.sh",
   },
   Satisfactory: {
@@ -28,7 +27,6 @@ const GAMES = {
     ),
     ports: [Port.tcp(7777), Port.udp(7777), Port.udp(15000), Port.udp(15777)],
     volumeSize: Size.gibibytes(24),
-    useSpot: true,
     volumeId: "vol-0713378dc970fb43d",
     /** Savedata is created under user's home */
     mountPaths: ["/home/ec2-user/.config/Epic"],

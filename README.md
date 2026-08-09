@@ -5,7 +5,7 @@ This project is a game server stack built using the AWS Cloud Development Kit (C
 ## Features
 
 - Single VPC & Public subnet
-- EC2 spot instance for hosting dedicated game servers
+- EC2 instance for hosting dedicated game servers
 - Hourly AMI backup with Data Lifecycle Manager policy
 - Automanic SteamCMD setup
 - Infrastructure-as-Code using the AWS CDK for easy deployment and management
@@ -31,7 +31,7 @@ Before getting started, make sure you have the following:
 1. Deploy the stack: `cdk deploy`
 1. Monitor the deployment progress in the AWS CloudFormation console
 
-By default your EC2 instance will be created via the spot intance request just for cost optimization. If it makes you umcomfortable, pls remove `spotOptions` from the LanchTemplate within the `lib/game-server-stack.ts`
+EC2 instances are launched as On-Demand instances.
 
 ## Contributing
 

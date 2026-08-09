@@ -23,7 +23,6 @@ test("VPC and EC2 instance created", () => {
   template.resourceCountIs("AWS::EC2::Subnet", 1);
   template.resourceCountIs("AWS::EC2::RouteTable", 1);
   template.resourceCountIs("AWS::EC2::Instance", 1);
-  template.resourceCountIs("AWS::EC2::LaunchTemplate", 1);
   template.resourceCountIs("AWS::EC2::SecurityGroup", 1);
   template.resourceCountIs("AWS::EC2::Volume", 1);
   template.resourceCountIs("AWS::EC2::InternetGateway", 1);

@@ -1,18 +1,13 @@
 import { Size, Stack, StackProps, Tag } from "aws-cdk-lib";
 import { CfnLifecyclePolicy } from "aws-cdk-lib/aws-dlm";
 import {
-  CfnEIP,
-  CfnEIPAssociation,
   EbsDeviceVolumeType,
   Instance,
   InstanceType,
-  LaunchTemplate,
   MachineImage,
   Peer,
   Port,
   SecurityGroup,
-  SpotInstanceInterruption,
-  SpotRequestType,
   SubnetType,
   UserData,
   Volume,
@@ -39,11 +34,6 @@ interface GameServerCommonProps extends StackProps {
    * @example InstanceType.of(InstanceClass.T3A, InstanceSize.LARGE)
    */
   instanceType: InstanceType;
-  /**
-   * By specifying true, use spot instances
-   * @default false
-   */
-  useSpot?: boolean;
   /**
    * The volume size of the persistent volume
    * Note that this doesn't apply for the root volume
@@ -104,15 +94,6 @@ export class GameServerStack extends Stack {
       securityGroup.addIngressRule(Peer.anyIpv4(), port)
     );
 
-    const launchTemplate = new LaunchTemplate(this, "Template", {
-      spotOptions: props.useSpot
-        ? {
-            requestType: SpotRequestType.PERSISTENT,
-            interruptionBehavior: SpotInstanceInterruption.STOP,
-          }
-        : undefined,
-    });
-
     const userData = UserData.forLinux();
     const mountPaths = ["/data", ...(props.mountPaths ?? [])];
     userData.addCommands(
@@ -154,18 +135,9 @@ export class GameServerStack extends Stack {
       "systemctl start game"
     );
 
-    const { instance: cfnInstance, instanceId } = instance;
+    const { instance: cfnInstance } = instance;
     const { volumeId } = this.getVolume(props.volumeId);
     cfnInstance.volumes = [{ device: DEVICE_NAME, volumeId }];
-    cfnInstance.launchTemplate = {
-      version: launchTemplate.versionNumber,
-      launchTemplateId: launchTemplate.launchTemplateId,
-    };
-    if (props.useSpot)
-      new CfnEIPAssociation(this, "EIPAssociation", {
-        allocationId: new CfnEIP(this, "EIP").attrAllocationId,
-        instanceId,
-      });
 
     const executionRoleArn = Role.fromRoleName(
       this,
